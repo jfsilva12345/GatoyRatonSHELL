@@ -1,0 +1,512 @@
+#James Felipe Silva Bermudez
+#Yeferson Andres Benavides
+#Alexander Benavides
+
+#! /bin/sh
+#configuracion de pines
+#leds
+	echo out > /sys/class/gpio/gpio50/direction #1
+	echo out > /sys/class/gpio/gpio28/direction #2
+	echo out > /sys/class/gpio/gpio17/direction #3
+	echo out > /sys/class/gpio/gpio24/direction #4
+	echo out > /sys/class/gpio/gpio27/direction #5
+	echo out > /sys/class/gpio/gpio26/direction #6
+	echo out > /sys/class/gpio/gpio19/direction #7
+	echo out > /sys/class/gpio/gpio16/direction #8 Ganador
+	echo out > /sys/class/gpio/gpio51/direction #9
+#configurar pines de direccionamiento (Multiplexor de 50 y 51)
+	echo 1 > /sys/class/gpio/gpio40/value
+	echo 1 > /sys/class/gpio/gpio41/value
+
+#configuracion de botones
+	echo in > /sys/class/gpio/gpio25/direction
+	echo in > /sys/class/gpio/gpio38/direction
+	echo in > /sys/class/gpio/gpio39/direction
+#Funcion para apagar o prender todos los pines
+OffOn(){
+	echo $1 > /sys/class/gpio/gpio50/value
+	echo $1 > /sys/class/gpio/gpio28/value
+	echo $1 > /sys/class/gpio/gpio17/value
+	echo $1 > /sys/class/gpio/gpio24/value
+	echo $1 > /sys/class/gpio/gpio27/value
+	echo $1 > /sys/class/gpio/gpio26/value
+	echo $1 > /sys/class/gpio/gpio19/value
+	echo $1 > /sys/class/gpio/gpio16/value
+	echo $1 > /sys/class/gpio/gpio51/value
+
+}
+#funcion de reinicio del juego
+Reset(){
+	contadorR=0
+	OffOn 0
+	#barra de carga
+	while [ $contadorR -lt 5 ]
+	do
+    	echo 1 > /sys/class/gpio/gpio50/value
+    	echo 1 > /sys/class/gpio/gpio28/value
+    	usleep 25000
+    	echo 0 > /sys/class/gpio/gpio50/value
+    	echo 0 > /sys/class/gpio/gpio28/value
+    	usleep 25000
+    	echo 1 > /sys/class/gpio/gpio17/value
+    	echo 1 > /sys/class/gpio/gpio24/value
+    	usleep 25000
+    	echo 0 > /sys/class/gpio/gpio17/value
+    	echo 0 > /sys/class/gpio/gpio24/value
+    	usleep 25000
+    	echo 1 > /sys/class/gpio/gpio27/value
+    	echo 1 > /sys/class/gpio/gpio26/value
+    	usleep 25000
+    	echo 0 > /sys/class/gpio/gpio27/value
+    	echo 0 > /sys/class/gpio/gpio26/value
+    	usleep 25000
+		echo 1 > /sys/class/gpio/gpio19/value
+		echo 1 > /sys/class/gpio/gpio51/value
+    	usleep 25000
+    	echo 0 > /sys/class/gpio/gpio19/value
+		echo 0 > /sys/class/gpio/gpio51/value
+		usleep 25000
+		
+
+    	
+		contadorR=$(($contadorR + 1))
+	done
+		#prende pares externos
+	    echo 1 > /sys/class/gpio/gpio50/value
+		echo 1 > /sys/class/gpio/gpio51/value
+		usleep 350000
+    	echo 0 > /sys/class/gpio/gpio50/value
+		echo 0 > /sys/class/gpio/gpio51/value
+		echo 1 > /sys/class/gpio/gpio28/value
+		echo 1 > /sys/class/gpio/gpio19/value
+		usleep 200000
+    	echo 0 > /sys/class/gpio/gpio28/value
+		echo 0 > /sys/class/gpio/gpio19/value
+		echo 1 > /sys/class/gpio/gpio17/value
+		echo 1 > /sys/class/gpio/gpio26/value
+    	usleep 200000
+    	echo 0 > /sys/class/gpio/gpio17/value
+		echo 0 > /sys/class/gpio/gpio26/value
+		echo 1 > /sys/class/gpio/gpio24/value
+		echo 1 > /sys/class/gpio/gpio27/value
+    	usleep 200000
+    	echo 0 > /sys/class/gpio/gpio24/value
+		echo 0 > /sys/class/gpio/gpio27/value
+		echo 1 > /sys/class/gpio/gpio16/value
+		usleep 250000
+		echo 0 > /sys/class/gpio/gpio16/value
+	OffOn 0
+	usleep 500000
+	Gato=0
+	echo 1 > /sys/class/gpio/gpio50/value
+}
+
+Anterior=0 #Guarda el estado anterior del boton de movimiento (cualquiera)
+Actual=0 #Guarda el estado actual del boton de movimiento (cualquiera)
+Gato=0 #Se movera entre 0 y 7
+Raton=0 #Se movera entre 1 y 8
+Fin=0 #Si es igual a 1 indica que el juego a finalizado
+Bandera=0 #Bandera para la validacion del boton al soltarlo
+
+	echo 1 > /sys/class/gpio/gpio50/value
+#compara si la posicion del gato(0-7) mas 1 es igual al raton (1-8) gana y prende el led ganador
+GameOver(){
+	if [ $(($Gato +1)) -eq $Raton ]; then
+		echo 0 > /sys/class/gpio/gpio16/value
+		usleep 1
+		echo 1 > /sys/class/gpio/gpio16/value
+		Fin=1
+	fi
+}
+BotonDerecha(){
+	contadorD=0
+	while [ $contadorD -lt 20 ] #valida 20 veces la condicion del boton
+	do
+		Actual=`cat /sys/class/gpio/gpio39/value` #captura el value del boton derecho
+		if [ $Actual != $Anterior ]; then #verifica que sean diferentes los estados
+			if [ $Actual == 0 ]; then #verifica que el boton este arriba
+				Gato=$(($Gato + 1)) #aumenta la posicion del gato
+				MoverDerecha	#llama a los case de la funcion derecha
+					echo $Gato 
+				break
+			fi
+		fi
+		Anterior=$Actual
+	    contadorD=$(($contadorD + 1))
+	done
+}
+BotonIzquierda(){
+	contadorI=0
+	while [ $contadorI -lt 20 ]
+	do
+		Actual=`cat /sys/class/gpio/gpio38/value`
+		if [ $Actual != $Anterior ]; then
+			if [ $Actual == 0 ]; then
+				Gato=$(($Gato - 1)) #disminuye la posicion del gato
+				MoverIzquierda
+					echo $Gato
+				break
+			fi
+		fi
+		Anterior=$Actual
+	    contadorI=$(($contadorI + 1))
+	done
+}
+MoverDerecha(){
+	case $Gato in
+
+    1)      echo 0 > /sys/class/gpio/gpio50/value   #si el gato esta en la posicion 1 despues de llegar de un movimiento de derecha
+            echo 1 > /sys/class/gpio/gpio28/value
+			GameOver;;
+
+    2)      echo 0 > /sys/class/gpio/gpio28/value
+            echo 1 > /sys/class/gpio/gpio17/value
+			GameOver;;
+
+    3)      echo 0 > /sys/class/gpio/gpio17/value
+            echo 1 > /sys/class/gpio/gpio24/value
+			GameOver;;
+
+	4)      echo 0 > /sys/class/gpio/gpio24/value
+            echo 1 > /sys/class/gpio/gpio27/value
+			GameOver;;
+
+    5)      echo 0 > /sys/class/gpio/gpio27/value
+            echo 1 > /sys/class/gpio/gpio26/value
+			GameOver;;
+
+    6)      echo 0 > /sys/class/gpio/gpio26/value
+            echo 1 > /sys/class/gpio/gpio19/value
+			GameOver;;
+
+    7)      echo 0 > /sys/class/gpio/gpio19/value
+			echo 1 > /sys/class/gpio/gpio51/value
+            GameOver;;
+    8)		echo 0 > /sys/class/gpio/gpio51/value
+			GameOver;;
+    *)      echo 1 > /sys/class/gpio/gpio50/value #si se desborda el numero por la derecha pasa a un led imaginario 
+			GameOver
+            Gato=0;; #pone al gato en la posicion inicial
+
+	esac
+}
+MoverIzquierda(){
+	case $Gato in
+    -1)		echo 0 > /sys/class/gpio/gpio50/value #si se desborda el numero por la izquierda pasa al led imaginario
+			GameOver;;
+
+    0)      echo 1 > /sys/class/gpio/gpio50/value
+            echo 0 > /sys/class/gpio/gpio28/value
+			GameOver;;
+
+    1)      echo 1 > /sys/class/gpio/gpio28/value
+            echo 0 > /sys/class/gpio/gpio17/value
+			GameOver;;
+
+    2)      echo 1 > /sys/class/gpio/gpio17/value
+            echo 0 > /sys/class/gpio/gpio24/value
+			GameOver;;
+
+	3)      echo 1 > /sys/class/gpio/gpio24/value
+            echo 0 > /sys/class/gpio/gpio27/value
+			GameOver;;
+
+    4)      echo 1 > /sys/class/gpio/gpio27/value
+            echo 0 > /sys/class/gpio/gpio26/value
+			GameOver;;
+
+    5)      echo 1 > /sys/class/gpio/gpio26/value
+            echo 0 > /sys/class/gpio/gpio19/value
+			GameOver;;
+
+    6)      echo 1 > /sys/class/gpio/gpio19/value
+			echo 0 > /sys/class/gpio/gpio51/value
+            GameOver;;
+
+    7)		echo 1 > /sys/class/gpio/gpio51/value
+ 			GameOver;;
+
+    *)      echo 1 > /sys/class/gpio/gpio51/value #si el numero es menor que el imaginario, reinicia el gato y lo pone en la ultimo posicion
+			GameOver
+            Gato=7;;
+
+	esac
+}
+Aleatorio(){
+	contadorA=0 
+	Random="8 6 5 7 1 6 7 2 3 4 8 1 6 7 5 2 8 1 7 3 6 4 2 1 7" #variable "vector" que me da numeros aleatorios
+	if [ $Bandera -eq 25 ]; then #bandera que no hace que se me desbore mi "vector"
+		Bandera=0
+	fi
+
+	for i in $Random # recorrera el for e "i" se asiganara las posiciones que tiene las variables random
+	 do
+	 	if [ $contadorA -eq $Bandera ]; then # hace que el "vector" aumente de posicion
+	 		Bandera=$(($Bandera + 1))
+	 		Raton=$i #le asigna el numero de la variable random en la posicion i a el Raton
+	 		break
+	 	fi
+	 	contadorA=$(($contadorA + 1))
+	done
+}
+Reset #llama al inicio del juego
+
+#comienzo del juego
+while true
+ do
+ 	Fin=0
+ 	reiniciar=`cat /sys/class/gpio/gpio25/value` #captura el boton de reinicio
+ 	if [ $reiniciar -eq 1 ]; then #si se reinicia llama a la funcion reset
+ 		Reset
+ 	fi
+ 	Aleatorio #llama a aleatorio y asigna la variable del raton 
+ 	if [ $(($Gato + 1 )) -eq $Raton ]; then #si existe un "blackjack" hace otro aleatorio
+        	Aleatorio
+	else
+        Indice="1 2 3 4 5 6" #variable para que corra el for 5 veces
+	
+case $Raton in # casos de posicionamiento del raton
+        1) echo 1 > /sys/class/gpio/gpio50/value #prende el led del raton
+			for i in $Indice #recorre el proceso 5 veces
+            do
+			usleep 25000
+			Izquierda=`cat /sys/class/gpio/gpio38/value` #captura el valor del boton izquierda
+
+			Derecha=`cat /sys/class/gpio/gpio39/value` #captura el valor del boton derecha
+			
+			if [ $Izquierda -eq 1 ]; then #llama a la validacion y movimiento izquierda
+        		  	BotonIzquierda
+			fi
+			if [ $Derecha -eq 1 ]; then #llama a la validacion y movimiento derecha
+       				BotonDerecha
+			fi
+			if [ $Fin -eq 1 ]; then #si se atrapo el raton la varable Fin seria 1
+				echo 1 > /sys/class/gpio/gpio50/value #prende el boton donde se encontraron
+				echo "GANASTE"
+				while [ $reiniciar -ne 1 ] #ciclo para que no arranque el juego nuevamente hasta que no haya un reset
+
+				do
+					 	reiniciar=`cat /sys/class/gpio/gpio25/value`
+
+					usleep 1
+				done
+			break
+			fi
+	    done
+	    usleep 25000
+	    echo 0 > /sys/class/gpio/gpio50/value #apago el led
+
+		;;
+        2) echo 1 > /sys/class/gpio/gpio28/value
+	        for i in $Indice
+            do         
+			usleep 25000
+			Izquierda=`cat /sys/class/gpio/gpio38/value`
+			Derecha=`cat /sys/class/gpio/gpio39/value`
+			
+			if [ $Izquierda -eq 1 ]; then
+        		  	BotonIzquierda
+			fi
+			if [ $Derecha -eq 1 ]; then
+       				BotonDerecha
+			fi
+			if [ $Fin -eq 1 ]; then
+				echo 1 > /sys/class/gpio/gpio28/value
+				echo "GANASTE"
+				while [ $reiniciar -ne 1 ]
+
+				do
+					 	reiniciar=`cat /sys/class/gpio/gpio25/value`
+
+					usleep 1
+				done
+				break
+			fi
+	    done
+	    usleep 25000
+	    echo 0 > /sys/class/gpio/gpio28/value
+		;;
+ 		3)  echo 1 > /sys/class/gpio/gpio17/value
+			for i in $Indice
+            do
+			usleep 25000
+			Izquierda=`cat /sys/class/gpio/gpio38/value`
+			Derecha=`cat /sys/class/gpio/gpio39/value`
+			
+			if [ $Izquierda -eq 1 ]; then
+        		  	BotonIzquierda
+			fi
+			if [ $Derecha -eq 1 ]; then
+       				BotonDerecha
+			fi
+			if [ $Fin -eq 1 ]; then
+				echo 1 > /sys/class/gpio/gpio17/value
+				echo "GANASTE"
+				while [ $reiniciar -ne 1 ]
+
+				do
+					 	reiniciar=`cat /sys/class/gpio/gpio25/value`
+
+					usleep 1
+				done
+			break
+			fi
+	    done
+	    usleep 25000
+	    echo 0 > /sys/class/gpio/gpio17/value
+		;;
+
+ 		4)  echo 1 > /sys/class/gpio/gpio24/value
+			for i in $Indice
+            do
+            usleep 25000
+			Izquierda=`cat /sys/class/gpio/gpio38/value`
+			Derecha=`cat /sys/class/gpio/gpio39/value`
+			
+			if [ $Izquierda -eq 1 ]; then
+        		  	BotonIzquierda
+			fi
+			if [ $Derecha -eq 1 ]; then
+       				BotonDerecha
+			fi
+			if [ $Fin -eq 1 ]; then
+				echo 1 > /sys/class/gpio/gpio24/value
+				echo "GANASTE"
+                while [ $reiniciar -ne 1 ]
+
+				do
+					 	reiniciar=`cat /sys/class/gpio/gpio25/value`
+
+					usleep 1
+				done
+               
+			break
+			fi
+	    done
+	    usleep 25000
+	    echo 0 > /sys/class/gpio/gpio24/value
+		;;
+
+ 		5)  echo 1 > /sys/class/gpio/gpio27/value
+ 		 	for i in $Indice
+            do               
+			usleep 25000
+			Izquierda=`cat /sys/class/gpio/gpio38/value`
+			Derecha=`cat /sys/class/gpio/gpio39/value`
+			
+			if [ $Izquierda -eq 1 ]; then
+        		  	BotonIzquierda
+			fi
+			if [ $Derecha -eq 1 ]; then
+       				BotonDerecha
+			fi
+			if [ $Fin -eq 1 ]; then
+				echo 1 > /sys/class/gpio/gpio27/value
+				echo "GANASTE"
+				while [ $reiniciar -ne 1 ]
+
+				do
+					 	reiniciar=`cat /sys/class/gpio/gpio25/value`
+
+					usleep 1
+				done
+			break
+			fi
+	    done
+	    usleep 25000
+	    echo 0 > /sys/class/gpio/gpio27/value
+		;;
+		6)	echo 1 > /sys/class/gpio/gpio26/value
+ 			for i in $Indice
+            do
+			usleep 25000
+			Izquierda=`cat /sys/class/gpio/gpio38/value`
+			Derecha=`cat /sys/class/gpio/gpio39/value`
+			
+			if [ $Izquierda -eq 1 ]; then
+        		  	BotonIzquierda
+			fi
+			if [ $Derecha -eq 1 ]; then
+       				BotonDerecha
+			fi
+			if [ $Fin -eq 1 ]; then
+				echo 1 > /sys/class/gpio/gpio26/value
+				echo "GANASTE"
+				while [ $reiniciar -ne 1 ]
+
+				do
+					 	reiniciar=`cat /sys/class/gpio/gpio25/value`
+
+					usleep 1
+				done
+			break
+			fi
+	    done
+	    usleep 25000
+	    echo 0 > /sys/class/gpio/gpio26/value
+		;;
+
+ 		7)  echo 1 > /sys/class/gpio/gpio19/value
+			for i in $Indice
+            do
+            usleep 25000
+			Izquierda=`cat /sys/class/gpio/gpio38/value`
+			Derecha=`cat /sys/class/gpio/gpio39/value`
+			
+			if [ $Izquierda -eq 1 ]; then
+        		  	BotonIzquierda
+			fi
+			if [ $Derecha -eq 1 ]; then
+       				BotonDerecha
+			fi
+			if [ $Fin -eq 1 ]; then
+				echo 1 > /sys/class/gpio/gpio19/value
+				echo "GANASTE"
+				while [ $reiniciar -ne 1 ]
+
+				do
+					 	reiniciar=`cat /sys/class/gpio/gpio25/value`
+
+					usleep 1
+				done
+			break
+			fi
+	    done
+	    usleep 25000
+	    echo 0 > /sys/class/gpio/gpio19/value
+		;;
+		8)	echo 1 > /sys/class/gpio/gpio51/value
+			for i in $Indice
+            do          
+            usleep 25000
+			Izquierda=`cat /sys/class/gpio/gpio38/value`
+			Derecha=`cat /sys/class/gpio/gpio39/value`
+
+			if [ $Izquierda -eq 1 ]; then
+        		  	BotonIzquierda
+			fi
+			if [ $Derecha -eq 1 ]; then
+       				BotonDerecha
+			fi
+			if [ $Fin -eq 1 ]; then
+				echo 1 > /sys/class/gpio/gpio51/value
+				echo "GANASTE"
+				while [ $reiniciar -ne 1 ]
+
+				do
+					 	reiniciar=`cat /sys/class/gpio/gpio25/value`
+
+					usleep 1
+				done
+			break
+			fi
+	    done
+	    usleep 25000
+	    echo 0 > /sys/class/gpio/gpio51/value
+		;;
+
+*) echo "Excepcion"
+	;;
+	esac
+	fi 
+done #fin while infinito
